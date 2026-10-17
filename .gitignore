@@ -1,0 +1,9 @@
+data/stage_2_data/train.csv
+data/stage_2_data/test.csv
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+.DS_Store
+.venv/
+venv/
