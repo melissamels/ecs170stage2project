@@ -30,6 +30,29 @@ def main():
 
     results = method_obj.run()
 
+    #training stats
+    y_true = np.asarray(results["train_true_y"])
+    y_pred = np.asarray(results["train_pred_y"])
+
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(
+        y_true, y_pred, average="weighted", zero_division=0
+    )
+    recall = recall_score(
+        y_true, y_pred, average="weighted", zero_division=0
+    )
+    f1 = f1_score(
+        y_true, y_pred, average="weighted", zero_division=0
+    )
+
+    print("\n************ Training Results ************")
+    print(f"Accuracy:  {accuracy:.8f}")
+    print(f"Precision: {precision:.8f}")
+    print(f"Recall:    {recall:.8f}")
+    print(f"F1 Score:  {f1:.8f}")
+    print("\nTraining Classification Report:")
+    print(classification_report(y_true, y_pred, zero_division=0))
+
     # Evaluate predictions
     y_true = np.asarray(results["true_y"])
     y_pred = np.asarray(results["pred_y"])
@@ -52,6 +75,7 @@ def main():
     print(f"F1 Score:  {f1:.4f}")
     print("\nClassification Report:")
     print(classification_report(y_true, y_pred, zero_division=0))
+
 
     # Create the results folder
     result_dir = Path("result/stage_2_result")
@@ -86,6 +110,15 @@ def main():
     plt.title("MLP Training Accuracy")
     plt.grid(True)
     plt.savefig(result_dir / "training_accuracy.png")
+    plt.close()
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(epochs, method_obj.test_loss_history)
+    plt.xlabel("Epoch")
+    plt.ylabel("Testing Loss")
+    plt.title("MLP Testing Loss")
+    plt.grid(True)
+    plt.savefig(result_dir / "testing_loss.png")
     plt.close()
 
     print("\nResults saved to:", result_dir)
