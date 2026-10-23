@@ -1,0 +1,9 @@
+[project]
+name = "ecs170stage2project"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "matplotlib>=3.9.4",
+    "scikit-learn>=1.6.1",
+    "torch>=2.8.0",
+]
