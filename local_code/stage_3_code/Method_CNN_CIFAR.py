@@ -23,25 +23,29 @@ class Method_CNN_CIFAR(method, nn.Module):
         nn.Module.__init__(self)
 
         self.max_epoch = 20
-        self.learning_rate = 0.001
+        self.learning_rate = 0.0001
         self.loss_history = []
         self.accuracy_history = []
         self.test_loss_history = []
         self.test_accuracy_history = []
-        self.batch_size = 4
+        self.batch_size = 64
 
         # original dim: 32 x 32 x 3
         self.network = nn.Sequential(
-            nn.Conv2d(3, 16, 5),
+            nn.Conv2d(3, 32, 3, padding = 1),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
 
-            nn.Conv2d(16, 32, 5),
+            nn.Conv2d(32, 64, 3, padding = 1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(64, 128, 3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
 
             nn.Flatten(),
-            nn.Linear(32 * 5 * 5, 120),
+            nn.Linear(128 * 4 * 4, 120),
             nn.ReLU(),
             nn.Linear(120, 84),
             nn.ReLU(),
@@ -74,13 +78,13 @@ class Method_CNN_CIFAR(method, nn.Module):
         testset = TensorDataset(x_test, y_test)
 
         self.trainloader = DataLoader(trainset, batch_size=self.batch_size,
-                                                  shuffle=True, num_workers=2)
+                                                  shuffle=True, num_workers=5)
 
         self.train_eval_loader = DataLoader(trainset, batch_size=self.batch_size,
-                                      shuffle=False, num_workers=2)
+                                      shuffle=False, num_workers=5)
 
         self.testloader = torch.utils.data.DataLoader(testset, batch_size=self.batch_size,
-                                                 shuffle=False, num_workers=2) #dont need to shuffle test
+                                                 shuffle=False, num_workers=5) #dont need to shuffle test
 
         optimizer = optim.Adam(self.network.parameters(), lr=self.learning_rate)
 
