@@ -28,7 +28,7 @@ class Method_CNN_CIFAR(method, nn.Module):
         self.accuracy_history = []
         self.test_loss_history = []
         self.test_accuracy_history = []
-        self.batch_size = 64
+        self.batch_size = 32
 
         # original dim: 32 x 32 x 3
         self.network = nn.Sequential(
