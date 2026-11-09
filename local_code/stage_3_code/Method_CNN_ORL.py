@@ -28,7 +28,7 @@ class Method_CNN_ORL(method, nn.Module):
         self.accuracy_history = []
         self.test_loss_history = []
         self.test_accuracy_history = []
-        self.batch_size = 32
+        self.batch_size = 64
 
         # original dim: 112 x 92
         self.network = nn.Sequential(
