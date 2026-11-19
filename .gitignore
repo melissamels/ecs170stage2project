@@ -1,5 +1,7 @@
 data/stage_2_data/train.csv
 data/stage_2_data/test.csv
+data/stage_3_data/
+result/stage_3_result/
 __pycache__/
 *.pyc
 .idea/
