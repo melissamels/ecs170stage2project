@@ -21,7 +21,7 @@ class Method_RNN(method, nn.Module):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
 
-        self.max_epoch = 20
+        self.max_epoch = 30
         self.learning_rate = 0.001
         self.batch_size = 128
 
@@ -56,7 +56,7 @@ class Method_RNN(method, nn.Module):
     def make_loader(self, x, y, shuffle):
         x = self.tokenizer.texts_to_sequences(x)
 
-        x = [review[:300] for review in x]
+        x = [review[:500] for review in x]
 
         x = [torch.tensor(review, dtype=torch.long) for review in x]
         x = pad_sequence(x, batch_first=True, padding_value=0)
