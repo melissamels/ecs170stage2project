@@ -12,6 +12,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 import numpy as np
+import torch.nn.functional as F
 
 from tensorflow.keras.preprocessing.text import Tokenizer
 
@@ -21,7 +22,7 @@ class Method_RNN_Gen(method, nn.Module):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
 
-        self.max_epoch = 20
+        self.max_epoch = 30
         self.learning_rate = 0.001
         self.batch_size = 64
 
@@ -30,15 +31,15 @@ class Method_RNN_Gen(method, nn.Module):
         self.test_loss_history = []
         self.test_accuracy_history = []
 
-        self.vocab_size = 10000 # Max number of unique words (tokens)
-        self.embedding_dim = 100 # Number of values used to represent each word
-        self.hidden_size = 256 # Number of features maintained in the RNN hidden state
-        self.num_layers = 2 # Number of layers
+        self.vocab_size = 5000 # Max number of unique words (tokens)
+        self.embedding_dim = 64 # Number of values used to represent each word
+        self.hidden_size = 128 # Number of features maintained in the RNN hidden state
+        self.num_layers = 1 # Number of layers
         
 
         self.embedding = nn.Embedding(self.vocab_size, self.embedding_dim, padding_idx=0)
-        self.rnn = nn.LSTM(self.embedding_dim, self.hidden_size, num_layers=self.num_layers, batch_first=True, dropout=0.5)
-        self.dropout = nn.Dropout(0.5) # Randomly turn off values to reduce overfitting
+        self.rnn = nn.LSTM(self.embedding_dim, self.hidden_size, num_layers=self.num_layers, batch_first=True)
+        self.dropout = nn.Dropout(0.3) # Randomly turn off values to reduce overfitting
         self.fc = nn.Linear(self.hidden_size, self.vocab_size) 
 
         self.criterion = nn.CrossEntropyLoss(ignore_index=0)
@@ -157,7 +158,7 @@ class Method_RNN_Gen(method, nn.Module):
             score[:, [0, self.UNK]] = float("-inf")  # never sample index 0 or <UNK>
 
             probs = F.softmax(score, dim=-1)
-            next_id = score.argmax(dim=-1, keepdim=True)
+            next_id = torch.multinomial(probs, num_samples=1)
             if next_id.item() == self.EOS:
                 break
             generated.append(next_id.item())

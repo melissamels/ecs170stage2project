@@ -75,6 +75,8 @@ def main():
     print(f"Recall:    {recall:.4f}")
     print(f"F1 Score:  {f1:.4f}")
 
+    story = method_obj.generate("What did the")
+    print("\nSample Generated Text: " + story)
 
     # Create the results folder
     result_dir = Path("result/stage_4_result/text_generation")
