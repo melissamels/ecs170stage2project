@@ -22,16 +22,16 @@ class Method_RNN_Gen(method, nn.Module):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
 
-        self.max_epoch = 30
+        self.max_epoch = 40
         self.learning_rate = 0.001
-        self.batch_size = 64
+        self.batch_size = 32
 
         self.loss_history = []
         self.accuracy_history = []
         self.test_loss_history = []
         self.test_accuracy_history = []
 
-        self.vocab_size = 5000 # Max number of unique words (tokens)
+        self.vocab_size = 3000 # Max number of unique words (tokens)
         self.embedding_dim = 64 # Number of values used to represent each word
         self.hidden_size = 128 # Number of features maintained in the RNN hidden state
         self.num_layers = 1 # Number of layers
