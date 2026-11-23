@@ -11,7 +11,7 @@ from sklearn.metrics import (
     classification_report
 )
 
-from local_code.stage_4_code.RNN_GEN_Dataset_Loader import RNN_Dataset_Loader
+from local_code.stage_4_code.RNN_Gen_Dataset_Loader import RNN_Dataset_Loader
 from local_code.stage_4_code.Method_RNN_gen import Method_RNN_gen
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2] #setting the wd to be ecs170stage2proj
@@ -22,7 +22,7 @@ def main():
     torch.manual_seed(2)
 
     print("************ Start Stage 4 - RNN Classification ************")
-
+    print("Requires 300d Glove")
     # Load the already separated training and testing data
     data_obj = RNN_Dataset_Loader("RNN", "")
     data_obj.dataset_source_folder_path = "data/stage_4_data/text_generation/"

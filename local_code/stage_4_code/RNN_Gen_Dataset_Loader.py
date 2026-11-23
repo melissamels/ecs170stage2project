@@ -27,6 +27,7 @@ class RNN_Dataset_Loader(dataset):
         data_path = 'data/stage_4_data/text_generation/data'
 
         joke = []
+        joke_id = []
 
         # Load training data
         with open(data_path, 'r', encoding='utf-8', newline = '') as f:
