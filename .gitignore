@@ -2,6 +2,7 @@ data/stage_2_data/train.csv
 data/stage_2_data/test.csv
 data/stage_3_data/
 result/stage_3_result/
+data/stage_4_data/text_generation/glove.txt
 __pycache__/
 *.pyc
 .idea/
