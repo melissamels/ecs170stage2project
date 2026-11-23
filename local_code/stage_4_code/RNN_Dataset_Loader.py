@@ -8,6 +8,7 @@ Concrete IO class for a specific dataset
 import numpy as np
 from local_code.base_class.dataset import dataset
 import os
+import re
 
 
 class RNN_Dataset_Loader(dataset):
@@ -18,6 +19,15 @@ class RNN_Dataset_Loader(dataset):
 
     def __init__(self, dName=None, dDescription=None):
         super().__init__(dName, dDescription)
+
+    def clean_text(self, text):
+        text = text.lower()
+
+        text = re.sub(r'<.*?.>', ' ', text)
+
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        return text
 
     def load(self):
         print("Loading RNN data...")
@@ -40,6 +50,8 @@ class RNN_Dataset_Loader(dataset):
                     review = f.read()
                     f.close()
 
+                    review = self.clean_text(review)
+
                     x_train.append(review)
                     y_train.append(1 if sentiment == 'pos' else 0)
 
@@ -57,6 +69,8 @@ class RNN_Dataset_Loader(dataset):
 
                     review = f.read()
                     f.close()
+
+                    review = self.clean_text(review)
 
                     x_test.append(review)
                     y_test.append(1 if sentiment == 'pos' else 0)

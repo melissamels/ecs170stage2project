@@ -87,7 +87,7 @@ def main():
 
     # Save predictions
     np.savetxt(
-        result_dir / "text_classification_predictions.csv",
+        result_dir / "RNN_text_classification_predictions.csv",
         np.column_stack((y_true, y_pred)),
         delimiter=",",
         fmt="%d",

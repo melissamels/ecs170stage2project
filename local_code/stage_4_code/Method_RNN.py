@@ -21,22 +21,22 @@ class Method_RNN(method, nn.Module):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
 
-        self.max_epoch = 30
+        self.max_epoch = 20
         self.learning_rate = 0.001
-        self.batch_size = 128
+        self.batch_size = 256
 
         self.loss_history = []
         self.accuracy_history = []
         self.test_loss_history = []
         self.test_accuracy_history = []
 
-        self.vocab_size = 20000 # Max number of unique words (tokens)
+        self.vocab_size = 10000 # Max number of unique words (tokens)
         self.embedding_dim = 100 # Number of values used to represent each word
         self.hidden_size = 256 # Number of features maintained in the RNN hidden state
 
         # the layers
         self.embedding = nn.Embedding(self.vocab_size, self.embedding_dim, padding_idx=0)
-        self.rnn = nn.LSTM(self.embedding_dim, self.hidden_size, batch_first=True)
+        self.rnn = nn.RNN(self.embedding_dim, self.hidden_size, batch_first=True, nonlinearity='tanh')
         self.dropout = nn.Dropout(0.5) # randomly turns off values to reduce overfitting
         self.fc = nn.Linear(self.hidden_size, 2) # 2 classes: negative / positive
 
@@ -45,9 +45,11 @@ class Method_RNN(method, nn.Module):
     def forward(self, x):
         emb = self.embedding(x) # word IDs -> vectors
 
-        output, (hidden, cell) = self.rnn(emb) # RNN reads the whole review
-        last = hidden[-1] # memory after the LAST word
-        return self.fc(self.dropout(last)) # -> 2 scores
+        output, hidden = self.rnn(emb) # RNN reads the whole review
+        output = self.dropout(output)
+        summed = torch.sum(output, dim=1)
+        # last = hidden[-1] # memory after the LAST word
+        return self.fc(self.dropout(summed)) # -> 2 scores
 
     def build_tokenizer(self, x_train):
         self.tokenizer = Tokenizer(num_words=self.vocab_size, oov_token="<UNK>")
@@ -56,7 +58,7 @@ class Method_RNN(method, nn.Module):
     def make_loader(self, x, y, shuffle):
         x = self.tokenizer.texts_to_sequences(x)
 
-        x = [review[:500] for review in x]
+        x = [review[:150] for review in x]
 
         x = [torch.tensor(review, dtype=torch.long) for review in x]
         x = pad_sequence(x, batch_first=True, padding_value=0)
