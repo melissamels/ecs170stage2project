@@ -22,7 +22,7 @@ def main():
     torch.manual_seed(2)
 
     print("************ Start Stage 4 - RNN Classification ************")
-    print("Requires 300d Glove")
+    print("Add GloVe 300d Wiki: data/stage_4_data/text_generation/glove.txt")
     # Load the already separated training and testing data
     data_obj = RNN_Dataset_Loader("RNN", "")
     data_obj.dataset_source_folder_path = "data/stage_4_data/text_generation/"
