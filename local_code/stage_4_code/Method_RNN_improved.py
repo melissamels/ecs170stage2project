@@ -1,4 +1,3 @@
-
 '''
 Concrete MethodModule class for a specific learning MethodModule
 '''
@@ -6,20 +5,17 @@ Concrete MethodModule class for a specific learning MethodModule
 # Copyright (c) 2017-Current Jiawei Zhang <jiawei@ifmlab.org>
 # License: TBD
 
-from copy import deepcopy
-import numpy as np
-import torch
+from local_code.base_class.method import method
 from torch import nn
+import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from torch.nn.utils.rnn import pack_padded_sequence
-from sklearn.model_selection import train_test_split
+from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
+import numpy as np
+
 from tensorflow.keras.preprocessing.text import Tokenizer
-from local_code.base_class.method import method
 
-
-class Method_RNN(method, nn.Module):
-    """Bidirectional LSTM text classifier with validation-based early stopping."""
+class Method_LSTM(method, nn.Module):
 
     def __init__(self, mName, mDescription):
         method.__init__(self, mName, mDescription)
@@ -27,139 +23,132 @@ class Method_RNN(method, nn.Module):
 
         self.max_epoch = 10
         self.learning_rate = 0.001
-        self.batch_size = 64
-        self.vocab_size = 20000
-        self.embedding_dim = 100
-        self.hidden_size = 128
-        self.max_length = 500
-        self.patience = 4
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.batch_size = 256
 
         self.loss_history = []
         self.accuracy_history = []
-        # These hold VALIDATION metrics, not test metrics, to avoid test-set tuning.
         self.test_loss_history = []
         self.test_accuracy_history = []
-        self.validation_loss_history = self.test_loss_history
-        self.validation_accuracy_history = self.test_accuracy_history
 
+        self.vocab_size = 10000 # Max number of unique words (tokens)
+        self.embedding_dim = 130 # Number of values used to represent each word
+        self.hidden_size = 256 # Number of features maintained in the RNN hidden state
+
+        # the layers
         self.embedding = nn.Embedding(self.vocab_size, self.embedding_dim, padding_idx=0)
-        self.rnn = nn.LSTM(
-            self.embedding_dim, self.hidden_size,
-            num_layers=2, batch_first=True, bidirectional=True, dropout=0.3
-        )
-        self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(self.hidden_size * 2, 2)
-        self.criterion = nn.CrossEntropyLoss()
-        self.to(self.device)
+        self.rnn1 = nn.LSTM(self.embedding_dim, self.hidden_size, batch_first=True)
+        self.dropout1 = nn.Dropout(0.5) # randomly turns off values to reduce overfitting
+        self.rnn2 = nn.LSTM(self.hidden_size, self.hidden_size, batch_first=True)
+        self.dropout2 = nn.Dropout(0.5)  # randomly turns off values to reduce overfitting
+        self.fc = nn.Linear(self.hidden_size, 2) # 2 classes: negative / positive
 
-    def forward(self, x, lengths=None):
-        if lengths is None:
-            lengths = (x != 0).sum(dim=1).clamp(min=1)
-        emb = self.embedding(x)
-        packed = pack_padded_sequence(
-            emb, lengths.detach().cpu(), batch_first=True, enforce_sorted=False
-        )
-        _, (hidden, _) = self.rnn(packed)
-        # Last forward and backward hidden states of final BiLSTM layer.
-        features = torch.cat([hidden[-2], hidden[-1]], dim=1)
-        return self.fc(self.dropout(features))
+        self.criterion = nn.CrossEntropyLoss()
+
+    def forward(self, x):
+        emb = self.embedding(x) # word IDs -> vectors
+
+        output, (hidden, cell) = self.rnn1(emb) # RNN reads the whole review
+        output = self.dropout1(output)
+        output, (hidden, cell) = self.rnn2(output) # RNN reads the whole review
+        summed = torch.sum(output, dim=1)
+        # last = hidden[-1] # memory after the LAST word
+        return self.fc(self.dropout2(summed)) # -> 2 scores
 
     def build_tokenizer(self, x_train):
         self.tokenizer = Tokenizer(num_words=self.vocab_size, oov_token="<UNK>")
-        self.tokenizer.fit_on_texts(list(x_train))
+        self.tokenizer.fit_on_texts(x_train)
 
     def make_loader(self, x, y, shuffle):
-        sequences = self.tokenizer.texts_to_sequences(list(x))
-        sequences = [s[:self.max_length] or [1] for s in sequences]
-        lengths = torch.tensor([len(s) for s in sequences], dtype=torch.long)
-        max_len = max(1, max(map(len, sequences)))
-        padded = torch.zeros((len(sequences), max_len), dtype=torch.long)
-        for i, seq in enumerate(sequences):
-            padded[i, :len(seq)] = torch.tensor(seq, dtype=torch.long)
-        labels = torch.as_tensor(np.asarray(y, dtype=np.int64), dtype=torch.long)
-        return DataLoader(
-            TensorDataset(padded, lengths, labels), batch_size=self.batch_size,
-            shuffle=shuffle, num_workers=0
-        )
+        x = self.tokenizer.texts_to_sequences(x)
+
+        x = [review[:150] for review in x]
+
+        x = [torch.tensor(review, dtype=torch.long) for review in x]
+        x = pad_sequence(x, batch_first=True, padding_value=0)
+
+        y = torch.tensor(y, dtype=torch.long)
+
+        return DataLoader(TensorDataset(x, y), batch_size=self.batch_size, shuffle=shuffle)
+
+    def train_model(self, data):
+
+        # Build tokenizer using training reviews only
+        self.build_tokenizer(data["x_train"])
+
+        self.trainloader = self.make_loader(data["x_train"], data["y_train"], True)
+        self.train_eval_loader = self.make_loader(data["x_train"], data["y_train"], False)
+        self.testloader = self.make_loader(data["x_test"], data["y_test"], False)
+
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+
+        # Training loop for each epoch
+        for epoch in range(self.max_epoch):
+            self.train()
+
+            for inputs, labels in self.trainloader:
+                optimizer.zero_grad()
+
+                outputs = self(inputs)
+                loss = self.criterion(outputs, labels)
+
+                loss.backward()
+
+                nn.utils.clip_grad_norm_(self.parameters(), 5.0)
+
+                optimizer.step()
+
+            _, train_loss, train_accuracy = self.test(self.train_eval_loader)
+            _, test_loss, test_accuracy = self.test(self.testloader)
+
+            self.loss_history.append(train_loss)
+            self.test_loss_history.append(test_loss)
+            self.accuracy_history.append(train_accuracy)
+            self.test_accuracy_history.append(test_accuracy)
+
+            print(
+                f"Epoch {epoch + 1}/{self.max_epoch} "
+                f"Loss: {train_loss:.4f} "
+                f"Accuracy: {train_accuracy:.4f}"
+            )
 
     def test(self, loader):
         self.eval()
-        total, total_loss, correct = 0, 0.0, 0
+        correct = 0
+        total = 0
+        total_loss = 0.0
+
         predictions = []
-        with torch.no_grad():
-            for inputs, lengths, labels in loader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self(inputs, lengths)
-                pred = outputs.argmax(dim=1)
-                predictions.extend(pred.cpu().tolist())
-                batch_size = labels.size(0)
-                total += batch_size
-                total_loss += self.criterion(outputs, labels).item() * batch_size
-                correct += (pred == labels).sum().item()
-        return predictions, total_loss / total, correct / total
 
-    def train_model(self, data):
-        torch.manual_seed(42)
-        np.random.seed(42)
-        x = np.asarray(data["x_train"], dtype=object)
-        y = np.asarray(data["y_train"], dtype=np.int64)
-        indices = np.arange(len(y))
-        train_idx, val_idx = train_test_split(
-            indices, test_size=0.1, random_state=42, stratify=y
-        )
-        self.build_tokenizer(x[train_idx])
-        self.trainloader = self.make_loader(x[train_idx], y[train_idx], True)
-        self.train_eval_loader = self.make_loader(x[train_idx], y[train_idx], False)
-        self.validloader = self.make_loader(x[val_idx], y[val_idx], False)
-        self.testloader = self.make_loader(data["x_test"], data["y_test"], False)
+        with (torch.no_grad()): # dont need grads while testing
+            for inputs, labels in loader:
+                outputs = self(inputs)
+                predicted = outputs.argmax(dim=1) # pick the higher score
+                predictions.extend(predicted.numpy())
+                total += labels.size(0)
+                total_loss += self.criterion(outputs, labels).item() * labels.size(0)
+                correct += (predicted == labels).sum().item()
 
-        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=0.01)
-        best_loss = float("inf")
-        best_state = None
-        bad_epochs = 0
+        epoch_loss = total_loss / total
+        epoch_test_accuracy = correct / total
 
-        for epoch in range(self.max_epoch):
-            self.train()
-            for inputs, lengths, labels in self.trainloader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
-                loss = self.criterion(self(inputs, lengths), labels)
-                loss.backward()
-                nn.utils.clip_grad_norm_(self.parameters(), 1.0)
-                optimizer.step()
-
-            _, train_loss, train_acc = self.test(self.train_eval_loader)
-            _, val_loss, val_acc = self.test(self.validloader)
-            self.loss_history.append(train_loss)
-            self.accuracy_history.append(train_acc)
-            self.test_loss_history.append(val_loss)
-            self.test_accuracy_history.append(val_acc)
-            print(f"Epoch {epoch+1}/{self.max_epoch} "
-                  f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
-                  f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}")
-
-            if val_loss < best_loss - 0.0001:
-                best_loss = val_loss
-                best_state = deepcopy(self.state_dict())
-                bad_epochs = 0
-            else:
-                bad_epochs += 1
-                if bad_epochs >= self.patience:
-                    print("Early stopping based on validation loss")
-                    break
-        if best_state is not None:
-            self.load_state_dict(best_state)
+        return predictions, epoch_loss, epoch_test_accuracy
 
     def run(self):
-        self.train_model(self.data)
+        print("Starting training...")
+
+        self.train_model(
+            self.data
+        )
+
         train_predictions, _, _ = self.test(self.train_eval_loader)
-        predictions, test_loss, test_accuracy = self.test(self.testloader)
-        print(f"Final held-out test accuracy: {test_accuracy:.4f}; loss: {test_loss:.4f}")
+
+        print("Starting testing...")
+
+        predictions, _, _ = self.test(self.testloader)
+
         return {
             "train_pred_y": train_predictions,
-            "train_true_y": self.train_eval_loader.dataset.tensors[2].numpy(),
+            "train_true_y": self.data["y_train"],
             "pred_y": predictions,
             "true_y": self.data["y_test"]
         }
-
